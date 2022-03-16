@@ -6,6 +6,11 @@
 #include "utils.h"
 #include "routeinfo.h"
 
+struct RouteDetails {
+    double bus_wait_time = 0.0;
+    double bus_velocity = 0.0;
+};
+
 class Route {
 public:
     Route() = default;
@@ -27,12 +32,15 @@ public:
     double GetLengthRoute(const std::unordered_map<std::string, RouteInfo>& stop_info) const;
 
     std::string ToString(const std::unordered_map<std::string, RouteInfo>& stop_info) const;
+    
+    std::vector<const std::string*> GetRoute() const;
+
+    bool IsRing() const;
 private:
     std::string number;
     bool isRing = false;
     std::vector<const std::string*> stops_route;
     std::unordered_set<std::string> stops_uniq;
 
-    bool IsRing() const;
 };
 

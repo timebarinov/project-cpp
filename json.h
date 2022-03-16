@@ -5,12 +5,17 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <cmath>
+
+inline bool CheckDouble(long double lhs, long double rhs, long double precision = 0.01)
+{
+    return std::abs(lhs - rhs) <= precision;
+}
 
 namespace Json {
 
     class Node : std::variant<std::vector<Node>, 
                 std::map<std::string, Node>,
-                int,
                 long double,
                 bool,
                 std::string> {
@@ -38,8 +43,15 @@ namespace Json {
         const auto& AsBool() const {
             return std::get<bool>(*this);
         }
+
+        size_t Index() const {
+            return this->index();
+        }
         
     };
+
+    bool operator==(const Node& lhs, const Node& rhs);
+    bool operator!=(const Node& lhs, const Node& rhs);
 
     class Document {
     public:

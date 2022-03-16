@@ -7,19 +7,7 @@
 #include "json.h"
 #include "route.h"
 #include "routeinfo.h"
-
-namespace Json {
-    struct Query {
-        std::vector<std::string> main_q;
-        std::vector<std::string> stat_q;
-    };
-
-    struct Parser {
-        Parser() = default;
-
-        Query GetInfo(std::istream& stream);
-    };
-};
+#include "manager.h"
 
 class RouteJson {
 public:
@@ -31,18 +19,35 @@ public:
 
     void ReadQuery(const std::string& query);
     void WriteQuery(const std::string& query);
+    void SetRoute(const std::string& query);
+    void CreateRoute();
+
+    void ProcessQuery(const Json::Node& query);
+    void WriteQueryJson(const Json::Node& query);
 private:
+
+    struct Query {
+        std::vector<Json::Node> base_requests;
+        std::vector<Json::Node> stat_requests;
+    };
+
+    Query GetInfo(std::istream& stream);
+
     std::ostream& out;
-    Json::Parser parser;
 
     std::unordered_map<std::string, Route> route_json;
     std::unordered_map<std::string, RouteInfo> stops_json;
+    RouteDetails route_details;
+    Manager manager;
 
-    void SetInfo(const std::vector<std::string> data);
-    void Write(const std::vector<std::string> data);
+
+    void SetInfo(const std::vector<Json::Node>& data);
+    void Write(const std::vector<Json::Node>& data);
+    void SetRouteJson(const std::map<std::string, Json::Node>& map);
 
     void WriteBus(const std::map<std::string, Json::Node>& query);
     void WriteStop(const std::map<std::string, Json::Node>& query);
+    void WriteRoute(const std::map<std::string, Json::Node>& query);
 
     RouteInfo& GetStops(std::string name);
     void SetDistance(std::string_view name, const std::unordered_map<std::string, double>& distance);

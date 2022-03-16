@@ -1,4 +1,5 @@
 #include "json.h"
+#include <cctype>
 
 using namespace std;
 
@@ -9,6 +10,31 @@ namespace Json {
 
     const Node& Document::GetRoot() const {
         return root;
+    }
+
+    bool operator!=(const Node& lhs, const Node& rhs) {
+        return !(lhs == rhs);
+    }
+
+    bool operator==(const Node& lhs, const Node& rhs) {
+        if (lhs.Index() != rhs.Index()) {
+            return false;
+        }
+
+        switch (lhs.Index()) {
+            case 0: return lhs.AsArray() == rhs.AsArray();
+            case 1: 
+                if (lhs.AsMap().count("total_time")) {
+                    return lhs.AsMap().at("total_time") == rhs.AsMap().at("total_time");
+                }
+                return lhs.AsMap() == rhs.AsMap();
+            case 2: return lhs.AsString() == rhs.AsString();
+            case 3: return lhs.AsBool() == rhs.AsBool();
+            case 4: return CheckDouble(lhs.AsDouble(), rhs.AsDouble());
+            default: return false;
+        }
+
+        return true;
     }
 
     Node LoadNode(istream& input);
@@ -27,9 +53,15 @@ namespace Json {
     }
 
     Node LoadDigit(istream& input) {
-        long double result = 0;
-        input >> result;
-        return Node(result);
+        char c;
+        string s;
+        input >> c; 
+        while (c == '-' || c == '.' || isdigit(c)) {
+            s.push_back(c);
+            input >> c;
+        }
+        input.putback(c);
+        return Node(stold(s));
     }
 
     Node LoadString(istream& input) {
@@ -56,10 +88,14 @@ namespace Json {
 
     Node LoadBool(istream& input) {
         string s;
-        input >> s;
         bool result = false;
+        char c;
+        do {
+            input >> c;
+            s.push_back(c);
+        } while (c != 'e');
 
-        if (s.substr(0,4) == "true") {
+        if (s == "true") {
             result = true;
         }
         return Node(result);

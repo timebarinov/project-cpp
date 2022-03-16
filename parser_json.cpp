@@ -1,34 +1,55 @@
 #include "parser_json.h"
 
-Json::Query Json::Parser::GetInfo(std::istream& stream) {
-    return { Json::Split(stream), Json::Split(stream) };
-}
-
 RouteJson::RouteJson(std::ostream& stream) : out(stream)
 {    
 }
 
 void RouteJson::Set(std::istream& stream) {
-    auto result = parser.GetInfo(stream);
-    SetInfo(result.main_q);
-    Write(result.stat_q);
+    auto result = GetInfo(stream);
+    SetInfo(result.base_requests);
+    CreateRoute();
+    Write(result.stat_requests);
+}
+
+void RouteJson::CreateRoute() {
+    manager = Manager(route_details.bus_wait_time, route_details.bus_velocity);
+    manager.createGuied(stops_json, route_json);
 }
 
 std::ostream& RouteJson::Get() {
     return out;
 }
 
-void RouteJson::SetInfo(const std::vector<std::string> data) {
+RouteJson::Query RouteJson::GetInfo(std::istream& stream) {
+    auto doc = Json::Load(stream);
+    const auto& que = doc.GetRoot().AsMap();
+    SetRouteJson(que.find("routing_settings")->second.AsMap());
+    return { que.at("base_requests").AsArray(), que.at("stat_requests").AsArray() };
+}
+
+void RouteJson::SetInfo(const std::vector<Json::Node>& data) {
     for (auto& query : data) {
-        ReadQuery(query);
+        ProcessQuery(query);
     }
 }
 
-void RouteJson::Write(const std::vector<std::string> data) {
+void RouteJson::SetRoute(const std::string & query) {
+    std::stringstream ss(query);
+    auto doc = Json::Load(ss);
+    const auto& que = doc.GetRoot().AsMap();
+    SetRouteJson(que.find("routing_settings")->second.AsMap());
+}
+
+void RouteJson::SetRouteJson(const std::map<std::string, Json::Node>& map) {
+    route_details.bus_velocity = map.at("bus_velocity").AsDouble();
+    route_details.bus_wait_time = map.at("bus_wait_time").AsDouble();
+}
+
+void RouteJson::Write(const std::vector<Json::Node>& data) {
     out << "[";
 
     for (size_t i = 0; i < data.size(); ++i) {
-        WriteQuery(data[i]);
+        WriteQueryJson(data[i]);
         if (i < data.size() - 1) {
             out << ", ";
         }
@@ -36,11 +57,15 @@ void RouteJson::Write(const std::vector<std::string> data) {
 
     out << "]";
 }
-
 void RouteJson::ReadQuery(const std::string& query) {
     std::stringstream ss(query);
     auto doc = Json::Load(ss);
-    const auto& que = doc.GetRoot().AsMap();
+    ProcessQuery(doc.GetRoot());
+}
+
+void RouteJson::ProcessQuery(const Json::Node& query) {
+    
+    const auto& que = query.AsMap();
 
     auto query_type = que.at("type").AsString();
 
@@ -76,7 +101,12 @@ void RouteJson::ReadQuery(const std::string& query) {
 void RouteJson::WriteQuery(const std::string& query) {
     std::stringstream ss(query);
     auto doc = Json::Load(ss);
-    const auto& que = doc.GetRoot().AsMap();
+    WriteQueryJson(doc.GetRoot());
+}
+
+void RouteJson::WriteQueryJson(const Json::Node& query) {
+    
+    const auto& que = query.AsMap();
 
     auto query_type = que.at("type").AsString();
 
@@ -85,6 +115,9 @@ void RouteJson::WriteQuery(const std::string& query) {
     }
     else if (query_type == "Stop") {
         WriteStop(que);
+    }
+    else if (query_type == "Route") {
+        WriteRoute(que);
     }
 }
 
@@ -137,6 +170,25 @@ void RouteJson::WriteBus(const std::map<std::string, Json::Node>& query) {
     }
 
     out << " }";
+}
+
+void RouteJson::WriteRoute(const std::map<std::string, Json::Node>& query) {
+    auto from = query.at("from").AsString();
+    auto to = query.at("to").AsString();
+
+    out << "{ \"request_id\": " << query.at("id").AsInt() << ", ";
+
+    const auto& answer = manager.GetOptimalRoute(from, to);
+    
+    if (std::holds_alternative<bool>(answer)) {
+        out << "\"error_message\": \"" << "not found" << '"';
+    }
+    else {
+        out << std::get<std::string>(answer);
+    }
+
+    out << " }";
+
 }
 
 void RouteJson::SetDistance(std::string_view name, const std::unordered_map<std::string, double>& distance) {

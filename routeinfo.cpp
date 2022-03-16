@@ -46,6 +46,10 @@ const utils::Coordinates& RouteInfo::GetCoords() const {
 }
 
 double RouteInfo::GetDistance(const std::string& name) const {
+    auto it = distance.find(name); 
+    if (it == distance.end()) {
+        return 1000000000.0;
+    }
     return distance.at(name);
 }
 

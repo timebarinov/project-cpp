@@ -75,6 +75,10 @@ std::string Route::ToString(const std::unordered_map<std::string, RouteInfo>& st
     return result.str();
 }
 
+std::vector<const std::string*> Route::GetRoute() const {
+    return stops_route;
+}
+
 bool Route::IsRing() const {
     return isRing;
 }
