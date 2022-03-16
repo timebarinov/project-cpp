@@ -9,6 +9,14 @@
 #define PI  3.1415926535
 
 namespace utils {
+
+    inline void RemoveSpaceLine(std::string_view& line) {
+        auto pos = line.find_last_of(' ');
+        if (pos != std::string_view::npos && pos == line.size() - 1) {
+            line.remove_suffix(line.size() - pos);
+        }
+    };
+    
     inline std::string_view GetPartLine(std::string_view& line, char space = ' ') {
         auto pos = line.find(space);
         std::string_view result = line;
@@ -20,7 +28,7 @@ namespace utils {
         else {
             line.remove_prefix(line.size());
         }
-
+        RemoveSpaceLine(result);
         return result;
     };
 
@@ -34,15 +42,9 @@ namespace utils {
         else {
             line.remove_prefix(line.size());
         }
-
+        RemoveSpaceLine(result);
         return result;
-    };
-
-    inline void RemoveSpaceLine(std::string_view& line) {
-        if (auto pos = line.find_last_of(' '); pos == line.size() - 1) {
-            line.remove_suffix(line.size() - pos);
-        }
-    };
+    };   
 
     inline long double GetRadian(long double degrees) {
         return degrees * PI / 180.0;

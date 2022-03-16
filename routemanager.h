@@ -20,8 +20,10 @@ public:
 
     std::string GetStops(std::string_view name);
 
+    std::string GetBus(std::string_view name);
+
 private:
     std::ostream& out;
-    std::unordered_map<std::string, utils::Coordinates> stops_manager;
+    std::unordered_map<std::string, RouteInfo> stops_manager;
     std::unordered_map<std::string, Route> route_manager;
 };
