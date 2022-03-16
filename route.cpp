@@ -16,10 +16,8 @@ void Route::SetRing(bool ring) {
 }
 
 void Route::SetStop(std::string_view stop) {
-    utils::RemoveSpaceLine(stop);
-
-    auto [stopIt, inserted] = stops_uniq.insert(move(std::string(stop)));
-    stops_route.push_back(&*stopIt);
+    auto [it, inserted] = stops_uniq.insert(move(std::string(stop)));
+    stops_route.push_back(&*it);
 }
 
 size_t Route::GetStopCount() const {
@@ -33,10 +31,10 @@ size_t Route::GetStopCountUniq() const {
 long double Route::GetLength(const std::unordered_map<std::string, RouteInfo>& stop_info) const {
     long double length = 0.0;
     
-    for (size_t num = 0; num < stops_route.size() - 1; ++num ) {
+    for (size_t i = 0; i < stops_route.size() - 1; i++ ) {
         length += utils::GetLength(
-            stop_info.at(*stops_route[num]).GetCoords(),
-            stop_info.at(*stops_route[num + 1]).GetCoords()
+            stop_info.at(*stops_route[i]).GetCoords(),
+            stop_info.at(*stops_route[i + 1]).GetCoords()
         );
     }
 
@@ -47,14 +45,32 @@ long double Route::GetLength(const std::unordered_map<std::string, RouteInfo>& s
     return length;
 }
 
+double Route::GetLengthRoute(const std::unordered_map<std::string, RouteInfo>& stop_info) const {
+    double length = 0.0;
+
+    for (size_t i = 0; i < stops_route.size() - 1; i++) {
+        length += stop_info.at(*stops_route[i]).GetDistance(*stops_route[i + 1]);
+    }
+
+    if (!IsRing()) {
+        for (size_t i = stops_route.size() - 1; i != 0; i--) {
+            length += stop_info.at(*stops_route[i]).GetDistance(*stops_route[i - 1]);
+        }
+    }
+
+    return length;
+}
+
 std::string Route::ToString(const std::unordered_map<std::string, RouteInfo>& stop_info) const {
     std::stringstream result;
-    result.precision(6);
+    result.precision(7);
+    double length = GetLengthRoute(stop_info);
 
     result << "Bus " << number << ": "
         << GetStopCount() << " stops on route, "
         << GetStopCountUniq() << " unique stops, "
-        << GetLength(stop_info) << " route length";
+        << length << " route length, "
+        << length / GetLength(stop_info) << " curvature";
 
     return result.str();
 }

@@ -11,7 +11,9 @@
 namespace utils {
 
     inline void RemoveSpaceLine(std::string_view& line) {
+
         auto pos = line.find_last_of(' ');
+
         if (pos != std::string_view::npos && pos == line.size() - 1) {
             line.remove_suffix(line.size() - pos);
         }

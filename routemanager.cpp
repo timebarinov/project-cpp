@@ -1,5 +1,6 @@
 #include "routemanager.h"
 #include <sstream>
+#include <math.h>
 #include <algorithm>
 
 using namespace std;
@@ -61,42 +62,46 @@ void RouteManager::SetStops(std::string_view name, std::string_view stops)
         auto stop_name = utils::GetPartLine(stops, stops.find_first_of(">-"));
         route.SetStop(stop_name);
 
-        auto str_name = string(stop_name);
-        auto it = stops_manager.find(str_name);
-        if (it == stops_manager.end()) {
-            auto& stop = stops_manager[move(str_name)];
-            stop = RouteInfo(stop_name);
-            stop.SetBus(route.GetName());
-        }
-        else {
-            it->second.SetBus(route.GetName());
-        }
+        auto& info = GetInfo(move(string(stop_name)));
+
+        info.SetBus(route.GetName());
     }
     
     route_manager[move(string(name))] = move(route);
 }
 
 void RouteManager::SetCoords(std::string_view name, std::string_view coords) {
-    auto stop_name = string(name);
-    auto it = stops_manager.find(stop_name);
+    
+    auto& info = GetInfo(move(string(name)));
+    info.SetCoords(coords);
+    SetDistance(name, info.GetDistanceFull());
+}
 
-    if (it != stops_manager.end()) {
-        it->second.SetCoords(coords);
+void RouteManager::SetDistance(std::string_view name, const std::unordered_map<std::string, double> distance) {
+    for ( auto i : distance) {
+        auto& info = GetInfo(i.first);
+        info.SetDistance(string(name), i.second);
     }
-    else {
-        stops_manager[move(string(name))] = RouteInfo(name, coords);
-    }
+}
+
+RouteInfo& RouteManager::GetInfo(std::string name) {
+    auto it = stops_manager.find(name);
+
+    return (it != stops_manager.end()) ?
+    it->second : stops_manager[name] = RouteInfo(name);
 }
 
 string RouteManager::GetStops(std::string_view name) {
     const auto& bus = stops_manager.find(string(name));
 
-    return (bus == stops_manager.end()) ? "Stop " + move(string(name)) + ": not found" : bus->second.ToString();
+    return (bus == stops_manager.end()) ? 
+    "Stop " + move(string(name)) + ": not found" : bus->second.ToString();
 }
 
 string RouteManager::GetBus(std::string_view name) {
     const auto& bus = route_manager.find(string(name));
 
-    return (bus == route_manager.end()) ? "Bus " + move(string(name)) + ": not found" : bus->second.ToString(stops_manager);
+    return (bus == route_manager.end()) ? 
+    "Bus " + move(string(name)) + ": not found" : bus->second.ToString(stops_manager);
 }
 

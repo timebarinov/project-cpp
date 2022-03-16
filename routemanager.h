@@ -26,4 +26,8 @@ private:
     std::ostream& out;
     std::unordered_map<std::string, RouteInfo> stops_manager;
     std::unordered_map<std::string, Route> route_manager;
+
+    void SetDistance(std::string_view name, const std::unordered_map<std::string, double> distance);
+    RouteInfo& GetInfo(std::string name);
+
 };

@@ -24,6 +24,8 @@ public:
     
     long double GetLength(const std::unordered_map<std::string, RouteInfo>& stop_info) const;
 
+    double GetLengthRoute(const std::unordered_map<std::string, RouteInfo>& stop_info) const;
+
     std::string ToString(const std::unordered_map<std::string, RouteInfo>& stop_info) const;
 private:
     std::string number;
@@ -33,3 +35,4 @@ private:
 
     bool IsRing() const;
 };
+
