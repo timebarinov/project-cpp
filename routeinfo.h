@@ -17,15 +17,19 @@ public:
 
     void SetCoords(std::string_view coords);
 
-    void SetDistance(std::string name, double dist);
+    void SetCoords(long double lat, long double lon);
+
+    void SetDistance(std::string name, double dist, bool flag = false);
 
     void SetDistance(std::string_view& coords);
 
+    double GetDistance(const std::string& name) const;
+
     const std::unordered_map<std::string, double>& GetDistanceFull() const;
 
-    const utils::Coordinates& GetCoords() const;
-    
-    double GetDistance(const std::string& name) const;
+    const utils::Coordinates& GetCoords() const;    
+
+    const std::set<std::string>& GetBuses() const;
 
     std::string ToString() const;
 private:

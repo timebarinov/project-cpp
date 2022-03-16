@@ -68,6 +68,11 @@ namespace utils {
             longitude = utils::GetRadian(longitude);
         };
 
+        Coordinates(long double lat, long double lon) {
+            latitude = utils::GetRadian(lat);
+            longitude = utils::GetRadian(lon);
+        }
+
         long double latitude = 0.0;
         long double longitude = 0.0;
     };

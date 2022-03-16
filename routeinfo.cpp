@@ -20,9 +20,13 @@ void RouteInfo::SetCoords(std::string_view coords) {
     }
 }
 
-void RouteInfo::SetDistance(std::string name, double dist) {
+void RouteInfo::SetCoords(long double lat, long double lon) {
+    coordinates = utils::Coordinates(lat, lon);
+}
+
+void RouteInfo::SetDistance(std::string name, double dist, bool flag) {
     auto it = distance.find(name);
-    if (it == distance.end()) {
+    if (it == distance.end() || flag) {
         distance[move(name)] = dist;
     }
 }
@@ -47,6 +51,10 @@ double RouteInfo::GetDistance(const std::string& name) const {
 
 const std::unordered_map<std::string, double>& RouteInfo::GetDistanceFull() const {
     return distance;
+}
+
+const std::set<std::string>& RouteInfo::GetBuses() const {
+    return buses;
 }
 
 std::string RouteInfo::ToString() const {

@@ -1,1 +1,1 @@
-g++ main.cpp routemanager.cpp route.cpp routeinfo.cpp -std=c++17
+g++ main.cpp routemanager.cpp route.cpp routeinfo.cpp json.cpp parser_json.cpp -std=c++17
