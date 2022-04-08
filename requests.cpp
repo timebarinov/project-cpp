@@ -7,7 +7,7 @@ using namespace std;
 
 namespace Requests {
 
-Json::Dict Stop::Process(const TransportCatalog& db) const {
+Json::Dict Stop::Process(const TransportCatalog& db, const Json::Node& id_node) const {
     const auto* stop = db.GetStop(name);
     Json::Dict dict;
     if (!stop) {
@@ -19,12 +19,13 @@ Json::Dict Stop::Process(const TransportCatalog& db) const {
         for (const auto& bus_name : stop->bus_names) {
             bus_nodes.emplace_back(bus_name);
         }
+        dict["request_id"] = id_node;
         dict["buses"] = Json::Node(move(bus_nodes));
     }
     return dict;
 }
 
-Json::Dict Bus::Process(const TransportCatalog& db) const {
+Json::Dict Bus::Process(const TransportCatalog& db, const Json::Node& id_node) const {
     const auto* bus = db.GetBus(name);
     Json::Dict dict;
     if (!bus) {
@@ -51,7 +52,7 @@ struct RouteItemResponseBuilder {
     }
 };
 
-Json::Dict Route::Process(const TransportCatalog& db) const {
+Json::Dict Route::Process(const TransportCatalog& db, const Json::Node& id_node) const {
     Json::Dict dict;
     const auto route = db.FindRoute(stop_from, stop_to);
     if (!route) {
@@ -71,7 +72,13 @@ Json::Dict Route::Process(const TransportCatalog& db) const {
     return dict;
 }
 
-variant<Stop, Bus, Route> Read(const Json::Dict& attrs) {
+Json::Dict Map::Process(const TransportCatalog& db, const Json::Node& id_node) const {
+    Json::Dict dict;
+    dict["map"] = db.RenderMap();
+    return dict;
+}
+
+variant<Stop, Bus, Route, Map> Read(const Json::Dict& attrs) {
     const string& type = attrs.at("type").AsString();
     if (type == "Bus") {
         return Bus { attrs.at("name").AsString() };
@@ -79,6 +86,9 @@ variant<Stop, Bus, Route> Read(const Json::Dict& attrs) {
     else if (type == "Stop") {
         return Stop { attrs.at("name").AsString() };
     } 
+    else if (type == "Map" || type == "map") {
+        return Map {};
+    }
     else {
         return Route { attrs.at("from").AsString(), attrs.at("to").AsString() };
     }
@@ -88,10 +98,11 @@ vector<Json::Node> ProcessAll(const TransportCatalog& db, const vector<Json::Nod
     vector<Json::Node> responses;
     responses.reserve(requests.size());
     for (const Json::Node& request_node : requests) {
-        Json::Dict dict = visit([&db](const auto& request) {
-            return request.Process(db);
+        Json::Node id = Json::Node(request_node.AsMap().at("id").AsInt());
+        Json::Dict dict = visit([&db, &id](const auto& request) {
+            return request.Process(db, id);
         }, Requests::Read(request_node.AsMap()));
-        dict["request_id"] = Json::Node(request_node.AsMap().at("id").AsInt());
+        dict["request_id"] = id;
         responses.push_back(Json::Node(dict));
     }
     return responses;

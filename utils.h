@@ -4,6 +4,8 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <cassert>
+#include <algorithm>
 
 template<typename It>
 class Range {

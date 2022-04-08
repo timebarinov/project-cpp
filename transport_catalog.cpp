@@ -1,10 +1,11 @@
 #include "transport_catalog.h"
+#include "map_renderer.h"
 
 #include <sstream>
 
 using namespace std;
 
-TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict& routing_settings_json) {
+TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict& routing_settings_json, const Json::Dict& render_settings_json) {
     auto stops_end = partition(begin(data), end(data), [](const auto& item) {
         return holds_alternative<Descriptions::Stop>(item);
     });
@@ -32,6 +33,8 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const 
     }
 
     router_ = make_unique<TransportRouter>(stops_dict, buses_dict, routing_settings_json);
+
+    map_ = BuildMap(stops_dict, buses_dict, render_settings_json);
 }
 
 const TransportCatalog::Stop* TransportCatalog::GetStop(const string& name) const {
@@ -60,4 +63,17 @@ double TransportCatalog::ComputeGeoRouteDistance(const vector<string>& stops, co
         result += Sphere::Distance(stops_dict.at(stops[i - 1])->position, stops_dict.at(stops[i])->position);
     }
     return result;
+}
+
+string TransportCatalog::RenderMap() const {
+    ostringstream out;
+    map_.Render(out);
+    return out.str();
+}
+
+Svg::Document TransportCatalog::BuildMap(const Descriptions::StopsDict& stops_, const Descriptions::BusesDict& buses_, const Json::Dict& render_settings_json) {
+    if (render_settings_json.empty()) {
+        return Svg::Document();
+    }
+    return MapRenderer(stops_, buses_, render_settings_json).Render();
 }

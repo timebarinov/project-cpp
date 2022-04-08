@@ -5,6 +5,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <variant>
 #include <vector>
 
@@ -35,6 +36,9 @@ std::vector<InputQuery> ReadDescriptions(const std::vector<Json::Node>& nodes);
 template<typename Object>
 using Dict = std::unordered_map<std::string, const Object*>;
 
+template<typename Object>
+using OrderedDict = std::map<std::string, const Object*>;
+
 using StopsDict = Dict<Stop>;
-using BusesDict = Dict<Bus>;
+using BusesDict = OrderedDict<Bus>;
 }

@@ -21,14 +21,20 @@ struct Rgb {
     uint8_t blue;
 };
 
-using Color = std::variant<std::monostate, std::string, Rgb>;
-const Color NoneColor{};
+struct Rgba: Rgb {
+    double opacity;
+};
+
+using Color = std::variant<std::monostate, std::string, Rgb , Rgba>;
+const Color NoneColor { };
 
 void RenderColor(std::ostream& out, std::monostate);
 
 void RenderColor(std::ostream& out, const std::string& value);
 
 void RenderColor(std::ostream& out, Rgb rgb);
+
+void RenderColor(std::ostream& out, Rgba rgba);
 
 void RenderColor(std::ostream& out, const Color& color);
 
@@ -38,7 +44,7 @@ public:
     virtual ~Object() = default;
 };
 
-template <typename Owner>
+template<typename Owner>
 class PathProps {
 public:
     Owner& SetFillColor(const Color& color);
@@ -58,59 +64,59 @@ private:
     Owner& AsOwner();
 };
 
-template <typename Owner>
+template<typename Owner>
 Owner& PathProps<Owner>::AsOwner() {
     return static_cast<Owner&>(*this);
 }
 
-template <typename Owner>
+template<typename Owner>
 Owner& PathProps<Owner>::SetFillColor(const Color& color) {
     fill_color_ = color;
     return AsOwner();
 }
 
-template <typename Owner>
+template<typename Owner>
 Owner& PathProps<Owner>::SetStrokeColor(const Color& color) {
     stroke_color_ = color;
     return AsOwner();
 }
 
-template <typename Owner>
+template<typename Owner>
 Owner& PathProps<Owner>::SetStrokeWidth(double value) {
     stroke_width_ = value;
     return AsOwner();
 }
 
-template <typename Owner>
+template<typename Owner>
 Owner& PathProps<Owner>::SetStrokeLineCap(const std::string& value) {
     stroke_line_cap_ = value;
     return AsOwner();
 }
 
-template <typename Owner>
+template<typename Owner>
 Owner& PathProps<Owner>::SetStrokeLineJoin(const std::string& value) {
     stroke_line_join_ = value;
     return AsOwner();
 }
 
-template <typename Owner>
+template<typename Owner>
 void PathProps<Owner>::RenderAttrs(std::ostream& out) const {
-    out << "fill=\"";
+    out << "fill=\\\"";
     RenderColor(out, fill_color_);
-    out << "\" ";
-    out << "stroke=\"";
+    out << "\\\" ";
+    out << "stroke=\\\"";
     RenderColor(out, stroke_color_);
-    out << "\" ";
-    out << "stroke-width=\"" << stroke_width_ << "\" ";
+    out << "\\\" ";
+    out << "stroke-width=\\\"" << stroke_width_ << "\\\" ";
     if (stroke_line_cap_) {
-        out << "stroke-linecap=\"" << *stroke_line_cap_ << "\" ";
+        out << "stroke-linecap=\\\"" << *stroke_line_cap_ << "\\\" ";
     }
     if (stroke_line_join_) {
-        out << "stroke-linejoin=\"" << *stroke_line_join_ << "\" ";
+        out << "stroke-linejoin=\\\"" << *stroke_line_join_ << "\\\" ";
     }
 }
 
-class Circle : public Object, public PathProps<Circle> {
+class Circle: public Object, public PathProps<Circle> {
 public:
     Circle& SetCenter(Point point);
     Circle& SetRadius(double radius);
@@ -121,7 +127,7 @@ private:
     double radius_ = 1;
 };
 
-class Polyline : public Object, public PathProps<Polyline> {
+class Polyline: public Object, public PathProps<Polyline> {
 public:
     Polyline& AddPoint(Point point);
     void Render(std::ostream& out) const override;
@@ -130,7 +136,7 @@ private:
     std::vector<Point> points_;
 };
 
-class Text : public Object, public PathProps<Text> {
+class Text: public Object, public PathProps<Text> {
 public:
     Text& SetPoint(Point point);
     Text& SetOffset(Point point);
@@ -147,9 +153,9 @@ private:
     std::string data_;
 };
 
-class Document : public Object {
+class Document: public Object {
 public:
-    template <typename ObjectType>
+    template<typename ObjectType>
     void Add(ObjectType object);
 
     void Render(std::ostream& out) const override;
@@ -158,7 +164,7 @@ private:
     std::vector<std::unique_ptr<Object>> objects_;
 };
 
-template <typename ObjectType>
+template<typename ObjectType>
 void Document::Add(ObjectType object) {
     objects_.push_back(std::make_unique<ObjectType>(std::move(object)));
 }

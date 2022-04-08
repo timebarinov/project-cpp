@@ -39,6 +39,10 @@ public:
     const auto& AsString() const {
         return std::get<std::string>(*this);
     }
+
+    bool IsString() const {
+        return std::holds_alternative<std::string>(*this) ? true : false;
+    }
 };
 
 class Document {
