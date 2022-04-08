@@ -32,6 +32,16 @@ static vector<Svg::Color> ParsePalette(const Json::Node& json) {
     return colors;
 }
 
+static vector<string> ParseLayers(const Json::Node& json) {
+    const auto& array = json.AsArray();
+    vector<string> layers;
+    layers.reserve(array.size());
+    for (const auto node: array) {
+        layers.push_back(node.AsString());
+    }
+    return layers;
+}
+
 static map<string, Svg::Point> ComputeStopsCoords(const Descriptions::StopsDict& stops_dict, const RenderSettings& render_settings) {
     vector<Sphere::Point> points;
     points.reserve(stops_dict.size());
@@ -77,6 +87,7 @@ RenderSettings ParseRenderSettings(const Json::Dict& json) {
     result.bus_label_offset = ParsePoint(json.at("bus_label_offset"));
     result.underlayer_color = ParseColor(json.at("underlayer_color"));
     result.palette = ParsePalette(json.at("color_palette"));
+    result.layers  = ParseLayers(json.at("layers"));
 
     return result;
 }
@@ -163,13 +174,19 @@ MapRenderer::MapRenderer(const Descriptions::StopsDict& stops_, const Descriptio
         buses_colors_(ChooseBusColors(buses_, ParseRenderSettings(render_settings_json_))) {
 }
 
+const std::unordered_map<std::string, void(MapRenderer::*)(Svg::Document&) const> MapRenderer::LAYERS_ACTIONS = {
+        {"bus_lines", &MapRenderer::RenderBusLines},
+        {"bus_labels", &MapRenderer::RenderBusLabels},
+        {"stop_points", &MapRenderer::RenderStopsPoints},
+        {"stop_labels", &MapRenderer::RenderStopLabels}
+};
+
 Svg::Document MapRenderer::Render() const {
     Svg::Document svg;
 
-    RenderBusLines(svg);
-    RenderBusLabels(svg);
-    RenderStopsPoints(svg);
-    RenderStopLabels(svg);
+    for (const auto& layer : render_settings_.layers) {
+        (this->*LAYERS_ACTIONS.at(layer))(svg);
+    }
 
     return svg;
 }
