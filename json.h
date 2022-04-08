@@ -1,69 +1,81 @@
 #pragma once
 
-#include <istream>
+#include <iostream>
 #include <map>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
-#include <cmath>
-
-inline bool CheckDouble(long double lhs, long double rhs, long double precision = 0.01)
-{
-    return std::abs(lhs - rhs) <= precision;
-}
+#include <iomanip>
 
 namespace Json {
 
-    class Node : std::variant<std::vector<Node>, 
-                std::map<std::string, Node>,
-                long double,
-                bool,
-                std::string> {
-    public:
-        using variant::variant;
+class Node;
+using Dict = std::map<std::string, Node>;
 
-        const auto& AsArray() const {
-            return std::get<std::vector<Node>>(*this);
-        }
-        const auto& AsMap() const {
-            return std::get<std::map<std::string, Node>>(*this);
-        }
-        int AsInt() const {
-            return static_cast<int>(std::get<long double>(*this));
-        }
+class Node: std::variant<std::vector<Node>, Dict, bool, int, double, std::string> {
+public:
+    using variant::variant;
+    const variant& GetBase() const {
+        return *this;
+    }
 
-        const auto& AsDouble() const {
-            return std::get<long double>(*this);
-        }
+    const auto& AsArray() const {
+        return std::get<std::vector<Node>>(*this);
+    }
+    const auto& AsMap() const {
+        return std::get<Dict>(*this);
+    }
+    bool AsBool() const {
+        return std::get<bool>(*this);
+    }
+    int AsInt() const {
+        return std::get<int>(*this);
+    }
+    double AsDouble() const {
+        return std::holds_alternative<double>(*this) ?
+                std::get<double>(*this) : std::get<int>(*this);
+    }
+    const auto& AsString() const {
+        return std::get<std::string>(*this);
+    }
+};
 
-        const auto& AsString() const {
-            return std::get<std::string>(*this);
-        }
+class Document {
+public:
+    explicit Document(Node root) : root_(move(root)) {}
 
-        const auto& AsBool() const {
-            return std::get<bool>(*this);
-        }
+    const Node& GetRoot() const {
+        return root_;
+    }
 
-        size_t Index() const {
-            return this->index();
-        }
-        
-    };
+private:
+    Node root_;
+};
 
-    bool operator==(const Node& lhs, const Node& rhs);
-    bool operator!=(const Node& lhs, const Node& rhs);
+Node LoadNode(std::istream& input);
 
-    class Document {
-    public:
-        explicit Document(Node root);
+Document Load(std::istream& input);
 
-        const Node& GetRoot() const;
+void PrintNode(const Node& node, std::ostream& output);
 
-    private:
-        Node root;
-    };
+template<typename Value>
+void PrintValue(const Value& value, std::ostream& output) {
+    output << value;
+}
 
-    Document Load(std::istream& input);
-    std::vector<std::string> Split(std::istream& in);
+template<>
+void PrintValue<std::string>(const std::string& value, std::ostream& output);
+
+template<>
+void PrintValue<bool>(const bool& value, std::ostream& output);
+
+template<>
+void PrintValue<std::vector<Node>>(const std::vector<Node>& nodes, std::ostream& output);
+
+template<>
+void PrintValue<Dict>(const Dict& dict, std::ostream& output);
+
+void Print(const Document& document, std::ostream& output);
 
 }

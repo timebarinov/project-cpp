@@ -1,160 +1,149 @@
 #include "json.h"
-#include <cctype>
 
 using namespace std;
 
 namespace Json {
 
-    Document::Document(Node root) : root(move(root)) {
-    }
+Node LoadArray(istream& input) {
+    vector<Node> result;
 
-    const Node& Document::GetRoot() const {
-        return root;
-    }
-
-    bool operator!=(const Node& lhs, const Node& rhs) {
-        return !(lhs == rhs);
-    }
-
-    bool operator==(const Node& lhs, const Node& rhs) {
-        if (lhs.Index() != rhs.Index()) {
-            return false;
+    for (char c; input >> c && c != ']';) {
+        if (c != ',') {
+            input.putback(c);
         }
-
-        switch (lhs.Index()) {
-            case 0: return lhs.AsArray() == rhs.AsArray();
-            case 1: 
-                if (lhs.AsMap().count("total_time")) {
-                    return lhs.AsMap().at("total_time") == rhs.AsMap().at("total_time");
-                }
-                return lhs.AsMap() == rhs.AsMap();
-            case 2: return lhs.AsString() == rhs.AsString();
-            case 3: return lhs.AsBool() == rhs.AsBool();
-            case 4: return CheckDouble(lhs.AsDouble(), rhs.AsDouble());
-            default: return false;
-        }
-
-        return true;
+        result.push_back(LoadNode(input));
     }
 
-    Node LoadNode(istream& input);
+    return Node(move(result));
+}
 
-    Node LoadArray(istream& input) {
-        vector<Node> result;
-
-        for (char c; input >> c && c != ']'; ) {
-            if (c != ',') {
-                input.putback(c);
-            }
-            result.push_back(LoadNode(input));
-        }
-
-        return Node(move(result));
+Node LoadBool(istream& input) {
+    string s;
+    while (isalpha(input.peek())) {
+        s.push_back(static_cast<char>(input.get()));
     }
+    return Node(s == "true");
+}
 
-    Node LoadDigit(istream& input) {
-        char c;
-        string s;
-        input >> c; 
-        while (c == '-' || c == '.' || isdigit(c)) {
-            s.push_back(c);
+Node LoadNumber(istream& input) {
+    bool is_negative = false;
+    if (input.peek() == '-') {
+        is_negative = true;
+        input.get();
+    }
+    int int_part = 0;
+    while (isdigit(input.peek())) {
+        int_part *= 10;
+        int_part += input.get() - '0';
+    }
+    if (input.peek() != '.') {
+        return Node(int_part * (is_negative ? -1 : 1));
+    }
+    input.get();
+    double result = int_part;
+    double frac_mult = 0.1;
+    while (isdigit(input.peek())) {
+        result += frac_mult * (input.get() - '0');
+        frac_mult /= 10;
+    }
+    return Node(result * (is_negative ? -1 : 1));
+}
+
+Node LoadString(istream& input) {
+    string line;
+    getline(input, line, '"');
+    return Node(move(line));
+}
+
+Node LoadDict(istream& input) {
+    Dict result;
+
+    for (char c; input >> c && c != '}';) {
+        if (c == ',') {
             input >> c;
         }
-        input.putback(c);
-        return Node(stold(s));
-    }
 
-    Node LoadString(istream& input) {
-        string line;
-        getline(input, line, '"');
-        return Node(move(line));
-    }
-
-    Node LoadDict(istream& input) {
-        map<string, Node> result;
-
-        for (char c; input >> c && c != '}'; ) {
-            if (c == ',') {
-                input >> c;
-            }
-
-            string key = LoadString(input).AsString();
-            input >> c;
-            result.emplace(move(key), LoadNode(input));
-        }
-
-        return Node(move(result));
-    }
-
-    Node LoadBool(istream& input) {
-        string s;
-        bool result = false;
-        char c;
-        do {
-            input >> c;
-            s.push_back(c);
-        } while (c != 'e');
-
-        if (s == "true") {
-            result = true;
-        }
-        return Node(result);
-    }
-
-    Node LoadNode(istream& input) {
-        char c;
+        string key = LoadString(input).AsString();
         input >> c;
+        result.emplace(move(key), LoadNode(input));
+    }
 
-        if (c == '[') {
-            return LoadArray(input);
-        } else if (c == '{') {
-            return LoadDict(input);
-        } else if (c == '"') {
-            return LoadString(input);
-        } else if (c == 't' || c == 'f') {
-            input.putback(c);
-            return LoadBool(input);
-        } else {
-            input.putback(c);
-            return LoadDigit(input);
+    return Node(move(result));
+}
+
+Node LoadNode(istream& input) {
+    char c;
+    input >> c;
+
+    if (c == '[') {
+        return LoadArray(input);
+    } 
+    else if (c == '{') {
+        return LoadDict(input);
+    } 
+    else if (c == '"') {
+        return LoadString(input);
+    } 
+    else if (c == 't' || c == 'f') {
+        input.putback(c);
+        return LoadBool(input);
+    } 
+    else {
+        input.putback(c);
+        return LoadNumber(input);
+    }
+}
+
+Document Load(istream& input) {
+    return Document { LoadNode(input) };
+}
+
+template<>
+void PrintValue<string>(const string& value, ostream& output) {
+    output << '"' << value << '"';
+}
+
+template<>
+void PrintValue<bool>(const bool& value, std::ostream& output) {
+    output << std::boolalpha << value;
+}
+
+template<>
+void PrintValue<std::vector<Node>>(const std::vector<Node>& nodes, std::ostream& output) {
+    output << '[';
+    bool first = true;
+    for (const Node& node : nodes) {
+        if (!first) {
+            output << ", ";
         }
+        first = false;
+        PrintNode(node, output);
     }
+    output << ']';
+}
 
-    Document Load(istream& input) {
-        return Document{LoadNode(input)};
-    }
-
-    std::vector<std::string> Split(std::istream& in) {
-
-        int count = 0;
-        string s;
-        vector<string> result;
-        getline(in, s, '[');
-        s.clear();
-
-        while(in) {
-            char c = in.get();
-
-            if (c == '{') {
-                ++count;
-            }
-            if (count > 0) {
-                s.push_back(c);
-            }
-
-            if (c == '}') {
-                --count;
-                if (count == 0) {
-                    result.push_back(move(s));
-                }
-            }
-            
-            if (count <= 0 && c == ']') {
-                break;
-            }
-
+template<>
+void PrintValue<Dict>(const Dict& dict, std::ostream& output) {
+    output << '{';
+    bool first = true;
+    for (const auto& [key, node] : dict) {
+        if (!first) {
+            output << ", ";
         }
-        return result;
+        first = false;
+        PrintValue(key, output);
+        output << ": ";
+        PrintNode(node, output);
     }
+    output << '}';
+}
+
+void PrintNode(const Json::Node& node, ostream& output) {
+    visit([&output](const auto& value) {PrintValue(value, output);}, node.GetBase());
+}
+
+void Print(const Document& document, ostream& output) {
+    PrintNode(document.GetRoot(), output);
+}
 
 }
