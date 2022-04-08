@@ -43,21 +43,12 @@ static vector<string> ParseLayers(const Json::Node& json) {
 }
 
 static map<string, Svg::Point> ComputeStopsCoords(const Descriptions::StopsDict& stops_dict, const RenderSettings& render_settings) {
-    vector<Sphere::Point> points;
-    points.reserve(stops_dict.size());
-    for(const auto& [_,stop_ptr] : stops_dict) {
-        points.push_back(stop_ptr->position);
-    }
-
-    const double max_width = render_settings.max_width;
-    const double max_height = render_settings.max_height;
-    const double padding = render_settings.padding;
-
-    const Sphere::Projector projector(begin(points),end(points), max_width,max_height,padding);
+    CoordsCompressor compressor(stops_dict);
+    compressor.FillTargets(render_settings.max_width, render_settings.max_height, render_settings.padding);
 
     map<string, Svg::Point> stops_coords;
     for (const auto& [stop_name, stop_ptr] : stops_dict) {
-        stops_coords[stop_name] = projector(stop_ptr->position);
+        stops_coords[stop_name] = {compressor.MapLon(stop_ptr->position.longitude), compressor.MapLat(stop_ptr->position.latitude)};
     }
     return stops_coords;
 }
@@ -189,4 +180,32 @@ Svg::Document MapRenderer::Render() const {
     }
 
     return svg;
+}
+
+CoordsCompressor::CoordsCompressor(const Descriptions::StopsDict& stops_dict){
+    for (const auto& [_, stop_ptr] : stops_dict) {
+        lats_.push_back({stop_ptr->position.latitude});
+        lons_.push_back({stop_ptr->position.longitude});
+    }
+    sort(begin(lats_), end(lats_));
+    sort(begin(lons_), end(lons_));
+}
+
+void CoordsCompressor::FillTargets(const double& max_width, const double& max_height, const double& padding){
+    if (lats_.empty() || lons_.empty()) return;
+
+    const size_t max_lat_idx = lats_.size() - 1;
+    const double y_step = max_lat_idx ? (max_height - 2 * padding) / max_lat_idx : 0;
+
+    const size_t max_lon_idx = lons_.size() - 1;
+    const double x_step = max_lon_idx ? (max_width - 2 * padding) / max_lon_idx : 0;
+
+    size_t idx = 0;
+    for (auto& [_, value] : lats_) {
+        value = max_height - padding - idx++ * y_step;
+    }
+    idx = 0;
+    for (auto& [_, value] : lons_) {
+        value = padding + idx++ * x_step;
+    }
 }

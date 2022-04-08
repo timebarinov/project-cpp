@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 struct RenderSettings {
     long double max_width;
@@ -42,4 +43,36 @@ private:
     void RenderBusLabels(Svg::Document& svg) const;
     void RenderStopsPoints(Svg::Document& svg) const;
     void RenderStopLabels(Svg::Document& svg) const;
+};
+
+class CoordsCompressor{
+public:
+	CoordsCompressor(const Descriptions::StopsDict& stops_dict);
+
+	void FillTargets(const double& max_width, const double& max_height, const double& padding);
+
+	double MapLat(double value) const {
+		return Find(lats_, value).target;
+    };
+
+	double MapLon(double value) const {
+		return Find(lons_, value).target;
+	};
+
+private:
+	struct CoordInfo {
+		double source;
+		double target = 0;
+
+		bool operator < (const CoordInfo& other) const {
+			return source < other.source;
+		}
+	};
+
+	std::vector<CoordInfo> lats_;
+	std::vector<CoordInfo> lons_;
+
+	static const CoordInfo& Find(const std::vector<CoordInfo>& sorted_values, double value) {
+	    return *lower_bound(begin(sorted_values), end(sorted_values), CoordInfo{value});
+	}
 };
