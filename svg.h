@@ -141,6 +141,7 @@ public:
     Text& SetPoint(Point point);
     Text& SetOffset(Point point);
     Text& SetFontSize(uint32_t size);
+    Text& SetFontWeight(const std::string& weight);
     Text& SetFontFamily(const std::string& value);
     Text& SetData(const std::string& data);
     void Render(std::ostream& out) const override;
@@ -149,6 +150,7 @@ private:
     Point point_;
     Point offset_;
     uint32_t font_size_ = 1;
+    std::optional<std::string> font_weight_;
     std::optional<std::string> font_family_;
     std::string data_;
 };

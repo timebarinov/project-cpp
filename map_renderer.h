@@ -17,7 +17,9 @@ struct RenderSettings {
     long double line_width;
     long double underlayer_width;
     int stop_label_font_size;
+    int bus_label_font_size;
     Svg::Point stop_label_offset;
+    Svg::Point bus_label_offset;
     Svg::Color underlayer_color;
     std::vector<Svg::Color> palette;
 };
@@ -35,6 +37,7 @@ private:
     std::map<std::string, Svg::Color> buses_colors_;
 
     void RenderBusLines(Svg::Document& svg) const;
+    void RenderBusLabels(Svg::Document& svg) const;
     void RenderStopsPoints(Svg::Document& svg) const;
     void RenderStopLabels(Svg::Document& svg) const;
 };

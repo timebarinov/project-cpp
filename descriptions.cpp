@@ -8,7 +8,7 @@ Stop Stop::ParseFrom(const Json::Dict& attrs) {
     Stop stop = { .name = attrs.at("name").AsString(), 
                 .position = { 
                     .latitude = attrs.at("latitude").AsDouble(), 
-                    .longitude = attrs.at("longitude").AsDouble(), } };
+                    .longitude = attrs.at("longitude").AsDouble(), }};
     if (attrs.count("road_distances") > 0) {
         for (const auto& [neighbour_stop, distance_node] : attrs.at("road_distances").AsMap()) {
             stop.distances[neighbour_stop] = distance_node.AsInt();
@@ -41,8 +41,22 @@ int ComputeStopsDistance(const Stop& lhs, const Stop& rhs) {
 }
 
 Bus Bus::ParseFrom(const Json::Dict& attrs) {
+    const auto stops = attrs.at("stops").AsArray();
+    vector<string> endpoints_;
+
+    if (!stops.empty()) {
+        if (attrs.at("is_roundtrip").AsBool() || stops[0].AsString() == stops[stops.size() - 1].AsString()) {
+            endpoints_.push_back(stops[0].AsString());
+        }
+        else { 
+            endpoints_.push_back(stops[0].AsString());
+            endpoints_.push_back(stops[stops.size() - 1].AsString());
+        }
+    }
+
     return Bus { .name = attrs.at("name").AsString(), 
-                .stops = ParseStops(attrs.at("stops").AsArray(), attrs.at("is_roundtrip").AsBool()), };
+                .stops = ParseStops(attrs.at("stops").AsArray(), attrs.at("is_roundtrip").AsBool()), 
+                .endpoints = endpoints_};
 }
 
 vector<InputQuery> ReadDescriptions(const vector<Json::Node>& nodes) {

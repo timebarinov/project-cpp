@@ -85,6 +85,11 @@ Text& Text::SetFontSize(uint32_t size) {
     return *this;
 }
 
+Text& Text::SetFontWeight(const std::string& weight) {
+    font_weight_ = weight;
+    return *this;
+}
+
 Text& Text::SetFontFamily(const std::string& value) {
     font_family_ = value;
     return *this;
@@ -104,6 +109,9 @@ void Text::Render(std::ostream& out) const {
     out << "font-size=\\\"" << font_size_ << "\\\" ";
     if (font_family_) {
         out << "font-family=\\\"" << *font_family_ << "\\\" ";
+    }
+    if (font_weight_) {
+        out << "font-weight=\\\"" << *font_weight_ << "\\\" ";
     }
     PathProps::RenderAttrs(out);
     out << ">";
