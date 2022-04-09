@@ -53,7 +53,7 @@ struct NeighboursDicts {
 
 class CoordsCompressor {
 public:
-    CoordsCompressor(const Descriptions::StopsDict& stops_dict);
+    CoordsCompressor(const std::unordered_map<std::string, Sphere::Point>& stops_dict);
 
     void FillTargets(const double& max_width, const double& max_height, const double& padding);
 

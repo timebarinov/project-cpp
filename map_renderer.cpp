@@ -42,15 +42,69 @@ static vector<string> ParseLayers(const Json::Node& json) {
     return layers;
 }
 
-static NeighboursDicts BuildCoordNeighboursDicts(const Descriptions::StopsDict& stops_dict, const Descriptions::BusesDict& buses_dict) {
+static unordered_set<string> FindSupportStops(const Descriptions::BusesDict& buses_dict) {
+    unordered_set<string> support_stops;
+    unordered_map<string, const Descriptions::Bus*> stops_first_bus;
+    unordered_map<string, int> stops_rank;
+    for (const auto& [_, bus_ptr] : buses_dict) {
+        for (const string& stop : bus_ptr->endpoints) {
+            support_stops.insert(stop);
+        }
+        for (const string& stop : bus_ptr->stops) {
+            stops_rank[stop]++;
+            const auto [it, inserted] = stops_first_bus.emplace(stop, bus_ptr);
+            if (!inserted && it->second != bus_ptr) {
+                support_stops.insert(stop);
+            }
+        }
+    }
+    for (const auto& [stop, rank] : stops_rank) {
+        if (rank > 2) support_stops.insert(stop);
+    }
+    return support_stops;
+}
+
+static unordered_map<string, Sphere::Point> ComputeInterpolatedStopsGeoCoords(const Descriptions::StopsDict& stops_dict, const Descriptions::BusesDict& buses_dict) {
+    const unordered_set<string> support_stops = FindSupportStops(buses_dict);
+
+    unordered_map<string, Sphere::Point> stops_coords;
+    for (const auto& [stop_name, stop_ptr] : stops_dict) {
+        stops_coords[stop_name] = stop_ptr->position;
+    }
+
+    for (const auto& [_, bus_ptr] : buses_dict) {
+        const auto& stops = bus_ptr->stops;
+        if (stops.empty()) continue;
+        size_t last_support_idx = 0;
+        stops_coords[stops[0]] = stops_dict.at(stops[0])->position;
+        for (size_t stop_idx = 1; stop_idx < stops.size(); stop_idx++) {
+            if (!support_stops.count(stops[stop_idx])) continue;
+            const Sphere::Point prev_coord = stops_dict.at(stops[last_support_idx])->position;
+            const Sphere::Point next_coord = stops_dict.at(stops[stop_idx])->position;
+            const double lat_step = (next_coord.latitude - prev_coord.latitude) / (stop_idx - last_support_idx);
+            const double lon_step = (next_coord.longitude - prev_coord.longitude) / (stop_idx - last_support_idx);
+            for (size_t middle_stop_idx = last_support_idx + 1; middle_stop_idx < stop_idx; middle_stop_idx++) {
+                stops_coords[stops[middle_stop_idx]] = {
+                    prev_coord.latitude + lat_step * (middle_stop_idx - last_support_idx),
+                    prev_coord.longitude + lon_step * (middle_stop_idx - last_support_idx),
+                };
+            }
+            stops_coords[stops[stop_idx]] = stops_dict.at(stops[stop_idx])->position;
+            last_support_idx = stop_idx;
+        }
+    }
+    return stops_coords;
+}
+
+static NeighboursDicts BuildCoordNeighboursDicts(const std::unordered_map<std::string, Sphere::Point>& stops_dict, const Descriptions::BusesDict& buses_dict) {
     unordered_map<double, unordered_set<double>> neighbour_lats;
     unordered_map<double, unordered_set<double>> neighbour_lons;
     for (const auto& [bus_name, bus_ptr] : buses_dict) {
         const auto& stops = bus_ptr->stops;
         if (stops.empty()) continue;
-        Sphere::Point point_prev = stops_dict.at(stops[0])->position;
+        Sphere::Point point_prev = stops_dict.at(stops[0]);
         for (size_t stop_idx = 1; stop_idx < stops.size(); stop_idx++) {
-            const auto point_cur = stops_dict.at(stops[stop_idx])->position;
+            const auto point_cur = stops_dict.at(stops[stop_idx]);
             const auto [min_lat, max_lat] = minmax(point_prev.latitude, point_cur.latitude);
             const auto [min_lon, max_lon] = minmax(point_prev.longitude, point_cur.longitude);
             neighbour_lats[max_lat].insert(min_lat);
@@ -62,15 +116,15 @@ static NeighboursDicts BuildCoordNeighboursDicts(const Descriptions::StopsDict& 
 }
 
 static map<string, Svg::Point> ComputeStopsCoords(const Descriptions::StopsDict& stops_dict, const Descriptions::BusesDict& buses_dict, const RenderSettings& render_settings) {
-    
-    const auto [neighbour_lats, neighbour_lons] = BuildCoordNeighboursDicts(stops_dict, buses_dict);
-    CoordsCompressor compressor(stops_dict);
+    const auto stops_geo_coords = ComputeInterpolatedStopsGeoCoords(stops_dict, buses_dict);
+    const auto [neighbour_lats, neighbour_lons] = BuildCoordNeighboursDicts(stops_geo_coords, buses_dict);
+    CoordsCompressor compressor(stops_geo_coords);
     compressor.FillIndices(neighbour_lats, neighbour_lons);
     compressor.FillTargets(render_settings.max_width, render_settings.max_height, render_settings.padding);
 
     map<string, Svg::Point> stops_coords;
-    for (const auto& [stop_name, stop_ptr] : stops_dict) {
-        stops_coords[stop_name] = {compressor.MapLon(stop_ptr->position.longitude), compressor.MapLat(stop_ptr->position.latitude)};
+    for (const auto& [stop_name, stop_coord] : stops_geo_coords) {
+        stops_coords[stop_name] = {compressor.MapLon(stop_coord.longitude), compressor.MapLat(stop_coord.latitude)};
     }
     return stops_coords;
 }
@@ -204,10 +258,10 @@ Svg::Document MapRenderer::Render() const {
     return svg;
 }
 
-CoordsCompressor::CoordsCompressor(const Descriptions::StopsDict& stops_dict){
-    for (const auto& [_, stop_ptr] : stops_dict) {
-        lats_.push_back({stop_ptr->position.latitude});
-        lons_.push_back({stop_ptr->position.longitude});
+CoordsCompressor::CoordsCompressor(const std::unordered_map<std::string, Sphere::Point>& stops_dict){
+    for (const auto& [_, stop_coord] : stops_dict) {
+        lats_.push_back({stop_coord.latitude});
+        lons_.push_back({stop_coord.longitude});
     }
     sort(begin(lats_), end(lats_));
     sort(begin(lons_), end(lons_));
