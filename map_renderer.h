@@ -47,8 +47,8 @@ private:
 };
 
 struct NeighboursDicts {
-    std::unordered_map<double, std::unordered_set<double>> neighbour_lats;
-    std::unordered_map<double, std::unordered_set<double>> neighbour_lons;
+    std::unordered_map<double, std::vector<double>> neighbour_lats;
+    std::unordered_map<double, std::vector<double>> neighbour_lons;
 };
 
 class CoordsCompressor {
@@ -57,8 +57,8 @@ public:
 
     void FillTargets(const double& max_width, const double& max_height, const double& padding);
 
-    void FillIndices(const std::unordered_map<double, std::unordered_set<double>>& neighbour_lats,
-        const std::unordered_map<double, std::unordered_set<double>>& neighbour_lons) {
+    void FillIndices(const std::unordered_map<double, std::vector<double>>& neighbour_lats,
+        const std::unordered_map<double, std::vector<double>>& neighbour_lons) {
         FillCoordIndices(lats_, neighbour_lats);
         FillCoordIndices(lons_, neighbour_lons);
     }
@@ -85,9 +85,15 @@ private:
     std::vector<CoordInfo> lats_;
     std::vector<CoordInfo> lons_;
 
-    static const CoordInfo& Find(const std::vector<CoordInfo>& sorted_values, double value) {
-        return *lower_bound(begin(sorted_values), end(sorted_values), CoordInfo{value});
+    static const CoordInfo& Find(const std::vector<CoordInfo>& sorted_values, double value, std::optional<std::vector<CoordInfo>::const_iterator> end_it = std::nullopt) {
+        return *lower_bound(begin(sorted_values), end_it.value_or(end(sorted_values)), CoordInfo{value});
     }
 
-    void FillCoordIndices(std::vector<CoordInfo>& coords, const std::unordered_map<double, std::unordered_set<double>>& neighbour_values);
+    static size_t FindMaxIdx(const std::vector<CoordInfo>& coords) {
+    return std::max_element(std::begin(coords), std::end(coords),
+        [] (const CoordInfo& lhs, const CoordInfo& rhs) { 
+            return lhs.idx < rhs.idx;})->idx;
+    }
+
+    void FillCoordIndices(std::vector<CoordInfo>& coords, const std::unordered_map<double, std::vector<double>>& neighbour_values);
 };

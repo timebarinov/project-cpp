@@ -17,9 +17,11 @@ static Svg::Color ParseColor(const Json::Node& json) {
     if (json.IsString()) return json.AsString();
     const auto& array = json.AsArray();
     assert(array.size() == 3 || array.size() == 4);
-    Svg::Rgb rgb { static_cast<uint8_t>(array[0].AsInt()),
-            static_cast<uint8_t>(array[1].AsInt()),
-            static_cast<uint8_t>(array[2].AsInt()) };
+    Svg::Rgb rgb { 
+        static_cast<uint8_t>(array[0].AsInt()),
+        static_cast<uint8_t>(array[1].AsInt()),
+        static_cast<uint8_t>(array[2].AsInt()) 
+    };
     if (array.size() == 3) return rgb;
     return Svg::Rgba { rgb, array[3].AsDouble() };
 }
@@ -97,19 +99,27 @@ static unordered_map<string, Sphere::Point> ComputeInterpolatedStopsGeoCoords(co
 }
 
 static NeighboursDicts BuildCoordNeighboursDicts(const std::unordered_map<std::string, Sphere::Point>& stops_dict, const Descriptions::BusesDict& buses_dict) {
-    unordered_map<double, unordered_set<double>> neighbour_lats;
-    unordered_map<double, unordered_set<double>> neighbour_lons;
+    unordered_map<double, vector<double>> neighbour_lats;
+    unordered_map<double, vector<double>> neighbour_lons;
     for (const auto& [bus_name, bus_ptr] : buses_dict) {
         const auto& stops = bus_ptr->stops;
         if (stops.empty()) continue;
         Sphere::Point point_prev = stops_dict.at(stops[0]);
         for (size_t stop_idx = 1; stop_idx < stops.size(); stop_idx++) {
             const auto point_cur = stops_dict.at(stops[stop_idx]);
-            const auto [min_lat, max_lat] = minmax(point_prev.latitude, point_cur.latitude);
-            const auto [min_lon, max_lon] = minmax(point_prev.longitude, point_cur.longitude);
-            neighbour_lats[max_lat].insert(min_lat);
-            neighbour_lons[max_lon].insert(min_lon);
+            if (stops[stop_idx] != stops[stop_idx - 1]) {
+                const auto [min_lat, max_lat] = minmax(point_prev.latitude, point_cur.latitude);
+                const auto [min_lon, max_lon] = minmax(point_prev.longitude, point_cur.longitude);
+                neighbour_lats[max_lat].push_back(min_lat);
+                neighbour_lons[max_lon].push_back(min_lon);
+            }
             point_prev = point_cur;
+        }
+    }
+    for (auto* neighbours_dict : {&neighbour_lats, &neighbour_lons}) {
+        for (auto& [_, values] : *neighbours_dict) {
+            sort(begin(values), end(values));
+            values.erase(unique(begin(values), end(values)), end(values));
         }
     }
     return {move(neighbour_lats), move(neighbour_lons)};
@@ -270,10 +280,10 @@ CoordsCompressor::CoordsCompressor(const std::unordered_map<std::string, Sphere:
 void CoordsCompressor::FillTargets(const double& max_width, const double& max_height, const double& padding){
     if (lats_.empty() || lons_.empty()) return;
 
-    const size_t max_lat_idx = lats_.back().idx;
+    const size_t max_lat_idx = FindMaxIdx(lats_);
     const double y_step = max_lat_idx ? (max_height - 2 * padding) / max_lat_idx : 0;
 
-    const size_t max_lon_idx = lons_.back().idx;
+    const size_t max_lon_idx = FindMaxIdx(lons_);
     const double x_step = max_lon_idx ? (max_width - 2 * padding) / max_lon_idx : 0;
 
     for (auto& [_, idx, value] : lats_) {
@@ -284,19 +294,19 @@ void CoordsCompressor::FillTargets(const double& max_width, const double& max_he
     }
 }
 
-void CoordsCompressor::FillCoordIndices(std::vector<CoordInfo>& coords, const std::unordered_map<double, std::unordered_set<double>>& neighbour_values) {
-    size_t global_idx = 0;
-    for (size_t coord_idx = 0; coord_idx < coords.size(); coord_idx++) {
-        CoordInfo& coord = coords[coord_idx];
-        const auto* neighbours_ptr = GetValuePointer(neighbour_values, coord.source);
-        size_t prev_idx = coord_idx;
-        while (prev_idx > 0 && coords[prev_idx - 1].idx == global_idx) {
-            prev_idx--;
-            if (neighbours_ptr && neighbours_ptr->count(coords[prev_idx].source)) {
-                global_idx++;
-                break;
-            }
+void CoordsCompressor::FillCoordIndices(std::vector<CoordInfo>& coords, const std::unordered_map<double, std::vector<double>>& neighbour_values) {
+    for (auto coord_it = begin(coords); coord_it != end(coords); coord_it++) {
+        const auto neighbours_it = neighbour_values.find(coord_it->source);
+        if (neighbours_it == neighbour_values.end()) {
+            coord_it->idx = 0;
+            continue;
         }
-        coord.idx = global_idx;
+        const auto& neighbours = neighbours_it->second;
+        optional<size_t> max_neighbour_idx;
+        for (const double value : neighbours) {
+            const size_t idx = Find(coords, value, coord_it).idx;
+            if (idx > max_neighbour_idx) max_neighbour_idx = idx;
+        }
+        coord_it->idx = *max_neighbour_idx + 1;
     }
 }
