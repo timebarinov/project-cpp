@@ -57,7 +57,8 @@ void TransportRouter::FillGraphWithBuses(const Descriptions::StopsDict& stops_di
                 total_distance += compute_distance_from(finish_stop_idx - 1);
                 edges_info_.push_back(BusEdgeInfo {
                             .bus_name = bus.name,
-                            .span_count = finish_stop_idx - start_stop_idx,
+                            .start_stop_idx = start_stop_idx,
+                            .finish_stop_idx = finish_stop_idx,
                         });
                 const Graph::EdgeId edge_id = graph_.AddEdge( {
                             start_vertex,
@@ -87,13 +88,17 @@ optional<TransportRouter::RouteInfo> TransportRouter::FindRoute(const string& st
             route_info.items.push_back(RouteInfo::BusItem { 
                 .bus_name = bus_edge_info.bus_name, 
                 .time = edge.weight, 
-                .span_count = bus_edge_info.span_count, });
+                .start_stop_idx = bus_edge_info.start_stop_idx,
+                .finish_stop_idx = bus_edge_info.finish_stop_idx,
+                .span_count = bus_edge_info.finish_stop_idx - bus_edge_info.start_stop_idx, 
+            });
         } 
         else {
             const Graph::VertexId vertex_id = edge.from;
             route_info.items.push_back(RouteInfo::WaitItem { 
                 .stop_name = vertices_info_[vertex_id].stop_name, 
-                .time = edge.weight, });
+                .time = edge.weight, 
+            });
         }
     }
     router_->ReleaseRoute(route->id);

@@ -100,7 +100,14 @@ Document Load(istream& input) {
 
 template<>
 void PrintValue<string>(const string& value, ostream& output) {
-    output << '"' << value << '"';
+    output << '"';
+    for (const char c : value) {
+        if (c == '"' || c == '\\') {
+            output << '\\';
+        }
+        output << c;
+    }
+    output << '"';
 }
 
 template<>

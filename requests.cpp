@@ -67,6 +67,7 @@ Json::Dict Route::Process(const TransportCatalog& db, const Json::Node& id_node)
         }
 
         dict["items"] = move(items);
+        dict["map"] = Json::Node(db.RenderRoute(*route));
     }
 
     return dict;

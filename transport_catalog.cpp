@@ -1,5 +1,4 @@
 #include "transport_catalog.h"
-#include "map_renderer.h"
 
 #include <sstream>
 
@@ -34,7 +33,8 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const 
 
     router_ = make_unique<TransportRouter>(stops_dict, buses_dict, routing_settings_json);
 
-    map_ = BuildMap(stops_dict, buses_dict, render_settings_json);
+    map_renderer_ = make_unique<MapRenderer>(stops_dict, buses_dict, render_settings_json);
+    map_ = map_renderer_->Render();
 }
 
 const TransportCatalog::Stop* TransportCatalog::GetStop(const string& name) const {
@@ -71,9 +71,12 @@ string TransportCatalog::RenderMap() const {
     return out.str();
 }
 
-Svg::Document TransportCatalog::BuildMap(const Descriptions::StopsDict& stops_, const Descriptions::BusesDict& buses_, const Json::Dict& render_settings_json) {
-    if (render_settings_json.empty()) {
-        return Svg::Document();
-    }
-    return MapRenderer(stops_, buses_, render_settings_json).Render();
+string TransportCatalog::RenderRoute(const TransportRouter::RouteInfo& route) const {
+    ostringstream out;
+    BuildRouteMap(route).Render(out);
+    return out.str();
+}
+
+Svg::Document TransportCatalog::BuildRouteMap(const TransportRouter::RouteInfo& route) const {
+    return map_renderer_->RenderRoute(map_, route);
 }

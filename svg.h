@@ -40,9 +40,22 @@ void RenderColor(std::ostream& out, const Color& color);
 
 class Object {
 public:
+    virtual std::unique_ptr<Object> Copy() const = 0;
     virtual void Render(std::ostream& out) const = 0;
     virtual ~Object() = default;
 };
+
+template <typename Owner>
+class CopyableObject : public Object {
+public:
+    std::unique_ptr<Object> Copy() const override;
+    virtual ~CopyableObject() = default;
+};
+
+template <typename Owner>
+std::unique_ptr<Object> CopyableObject<Owner>::Copy() const {
+    return std::make_unique<Owner>(static_cast<const Owner&>(*this));
+}
 
 template<typename Owner>
 class PathProps {
@@ -101,22 +114,22 @@ Owner& PathProps<Owner>::SetStrokeLineJoin(const std::string& value) {
 
 template<typename Owner>
 void PathProps<Owner>::RenderAttrs(std::ostream& out) const {
-    out << "fill=\\\"";
+    out << "fill=\"";
     RenderColor(out, fill_color_);
-    out << "\\\" ";
-    out << "stroke=\\\"";
+    out << "\" ";
+    out << "stroke=\"";
     RenderColor(out, stroke_color_);
-    out << "\\\" ";
-    out << "stroke-width=\\\"" << stroke_width_ << "\\\" ";
+    out << "\" ";
+    out << "stroke-width=\"" << stroke_width_ << "\" ";
     if (stroke_line_cap_) {
-        out << "stroke-linecap=\\\"" << *stroke_line_cap_ << "\\\" ";
+        out << "stroke-linecap=\"" << *stroke_line_cap_ << "\" ";
     }
     if (stroke_line_join_) {
-        out << "stroke-linejoin=\\\"" << *stroke_line_join_ << "\\\" ";
+        out << "stroke-linejoin=\"" << *stroke_line_join_ << "\" ";
     }
 }
 
-class Circle: public Object, public PathProps<Circle> {
+class Circle: public CopyableObject<Circle>, public PathProps<Circle> {
 public:
     Circle& SetCenter(Point point);
     Circle& SetRadius(double radius);
@@ -127,7 +140,7 @@ private:
     double radius_ = 1;
 };
 
-class Polyline: public Object, public PathProps<Polyline> {
+class Polyline: public CopyableObject<Polyline>, public PathProps<Polyline> {
 public:
     Polyline& AddPoint(Point point);
     void Render(std::ostream& out) const override;
@@ -136,7 +149,18 @@ private:
     std::vector<Point> points_;
 };
 
-class Text: public Object, public PathProps<Text> {
+class Rectangle : public CopyableObject<Rectangle>, public PathProps<Rectangle> {
+public:
+    Rectangle& SetTopLeftPoint(Point point);
+    Rectangle& SetBottomRightPoint(Point point);
+    void Render(std::ostream& out) const override;
+
+private:
+    Point top_left_point_;
+    Point bottom_right_point_;
+};
+
+class Text: public CopyableObject<Text>, public PathProps<Text> {
 public:
     Text& SetPoint(Point point);
     Text& SetOffset(Point point);
@@ -155,8 +179,15 @@ private:
     std::string data_;
 };
 
-class Document: public Object {
+class Document: public CopyableObject<Document> {
 public:
+    Document() = default;
+    Document(const Document& other);
+    Document& operator=(const Document& other);
+
+    Document(Document&&) = default;
+    Document& operator=(Document&&) = default;
+
     template<typename ObjectType>
     void Add(ObjectType object);
 

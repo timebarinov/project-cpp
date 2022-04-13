@@ -40,9 +40,9 @@ Circle& Circle::SetRadius(double radius) {
 
 void Circle::Render(std::ostream& out) const {
     out << "<circle ";
-    out << "cx=\\\"" << center_.x << "\\\" ";
-    out << "cy=\\\"" << center_.y << "\\\" ";
-    out << "r=\\\"" << radius_ << "\\\" ";
+    out << "cx=\"" << center_.x << "\" ";
+    out << "cy=\"" << center_.y << "\" ";
+    out << "r=\"" << radius_ << "\" ";
     PathProps::RenderAttrs(out);
     out << "/>";
 }
@@ -54,18 +54,30 @@ Polyline& Polyline::AddPoint(Point point) {
 
 void Polyline::Render(std::ostream& out) const {
     out << "<polyline ";
-    out << "points=\\\"";
-    bool first = true;
+    out << "points=\"";
     for (const Point point : points_) {
-        if (first) {
-            first = false;
-        } 
-        else {
-            out << " ";
-        }
-        out << point.x << "," << point.y;
+        out << point.x << "," << point.y << " ";
     }
-    out << "\\\" ";
+    out << "\" ";
+    PathProps::RenderAttrs(out);
+    out << "/>";
+}
+
+Rectangle& Rectangle::SetTopLeftPoint(Point point) {
+    top_left_point_ = point;
+    return *this;
+}
+Rectangle& Rectangle::SetBottomRightPoint(Point point) {
+    bottom_right_point_ = point;
+    return *this;
+}
+
+void Rectangle::Render(std::ostream& out) const {
+    out << "<rect ";
+    out << "x=\"" << top_left_point_.x << "\" ";
+    out << "y=\"" << top_left_point_.y << "\" ";
+    out << "width=\"" << (bottom_right_point_.x - top_left_point_.x) << "\" ";
+    out << "height=\"" << (bottom_right_point_.y - top_left_point_.y) << "\" ";
     PathProps::RenderAttrs(out);
     out << "/>";
 }
@@ -102,16 +114,16 @@ Text& Text::SetData(const std::string& data) {
 
 void Text::Render(std::ostream& out) const {
     out << "<text ";
-    out << "x=\\\"" << point_.x << "\\\" ";
-    out << "y=\\\"" << point_.y << "\\\" ";
-    out << "dx=\\\"" << offset_.x << "\\\" ";
-    out << "dy=\\\"" << offset_.y << "\\\" ";
-    out << "font-size=\\\"" << font_size_ << "\\\" ";
+    out << "x=\"" << point_.x << "\" ";
+    out << "y=\"" << point_.y << "\" ";
+    out << "dx=\"" << offset_.x << "\" ";
+    out << "dy=\"" << offset_.y << "\" ";
+    out << "font-size=\"" << font_size_ << "\" ";
     if (font_family_) {
-        out << "font-family=\\\"" << *font_family_ << "\\\" ";
+        out << "font-family=\"" << *font_family_ << "\" ";
     }
     if (font_weight_) {
-        out << "font-weight=\\\"" << *font_weight_ << "\\\" ";
+        out << "font-weight=\"" << *font_weight_ << "\" ";
     }
     PathProps::RenderAttrs(out);
     out << ">";
@@ -119,9 +131,24 @@ void Text::Render(std::ostream& out) const {
     out << "</text>";
 }
 
+Document::Document(const Document& other) {
+    objects_.reserve(other.objects_.size());
+    for (const auto& object : other.objects_) {
+        objects_.push_back(object->Copy());
+    }
+}
+
+Document& Document::operator=(const Document& other) {
+    if (this != &other) {
+        Document other_copy(other);
+        std::swap(*this, other_copy);
+    }
+    return *this;
+}
+
 void Document::Render(std::ostream& out) const {
-    out << "<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\" ?>";
-    out << "<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" version=\\\"1.1\\\">";
+    out << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>";
+    out << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\">";
     for (const auto& object_ptr : objects_) {
         object_ptr->Render(out);
     }

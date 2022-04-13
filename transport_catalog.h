@@ -2,6 +2,7 @@
 
 #include "descriptions.h"
 #include "json.h"
+#include "map_renderer.h"
 #include "transport_router.h"
 #include "utils.h"
 #include "svg.h"
@@ -40,16 +41,18 @@ public:
     std::optional<TransportRouter::RouteInfo> FindRoute(const std::string& stop_from, const std::string& stop_to) const;
 
     std::string RenderMap() const;
+    std::string RenderRoute(const TransportRouter::RouteInfo& route) const;
 
 private:
     static int ComputeRoadRouteLength(const std::vector<std::string>& stops, const Descriptions::StopsDict& stops_dict);
 
     static double ComputeGeoRouteDistance(const std::vector<std::string>& stops, const Descriptions::StopsDict& stops_dict);
 
-    static Svg::Document BuildMap(const Descriptions::StopsDict& stops_, const Descriptions::BusesDict& buses_, const Json::Dict& render_settings_json);
+    Svg::Document BuildRouteMap(const TransportRouter::RouteInfo& route) const;
 
     std::unordered_map<std::string, Stop> stops_;
     std::unordered_map<std::string, Bus> buses_;
     std::unique_ptr<TransportRouter> router_;
+    std::unique_ptr<MapRenderer> map_renderer_;
     Svg::Document map_;
 };

@@ -3,6 +3,7 @@
 #include "descriptions.h"
 #include "json.h"
 #include "svg.h"
+#include "transport_router.h"
 
 #include <map>
 #include <string>
@@ -12,12 +13,13 @@
 #include <algorithm>
 
 struct RenderSettings {
-    long double max_width;
-    long double max_height;
-    long double padding;
-    long double stop_radius;
-    long double line_width;
-    long double underlayer_width;
+    double max_width;
+    double max_height;
+    double padding;
+    double outer_margin;
+    double stop_radius;
+    double line_width;
+    double underlayer_width;
     int stop_label_font_size;
     int bus_label_font_size;
     Svg::Point stop_label_offset;
@@ -32,18 +34,32 @@ public:
     MapRenderer(const Descriptions::StopsDict& stops, const Descriptions::BusesDict& buses, const Json::Dict& render_settings);
 
     Svg::Document Render() const;
+    Svg::Document RenderRoute(Svg::Document whole_map, const TransportRouter::RouteInfo& route) const;
 
 private:
     RenderSettings render_settings_;
-    const Descriptions::BusesDict& buses_dict_;
     std::map<std::string, Svg::Point> stops_coords_;
     std::map<std::string, Svg::Color> buses_colors_;
-    static const std::unordered_map<std::string, void(MapRenderer::*)(Svg::Document&) const> LAYERS_ACTIONS;
+    std::map<std::string, Descriptions::Bus> buses_dict_;
+
+    void RenderBusLabel(Svg::Document& svg, const std::string& bus_name, const std::string& stop_name) const;
+    void RenderStopPoint(Svg::Document& svg, Svg::Point point) const;
+    void RenderStopLabel(Svg::Document& svg, Svg::Point point, const std::string& name) const;
+
 
     void RenderBusLines(Svg::Document& svg) const;
     void RenderBusLabels(Svg::Document& svg) const;
-    void RenderStopsPoints(Svg::Document& svg) const;
+    void RenderStopPoints(Svg::Document& svg) const;
     void RenderStopLabels(Svg::Document& svg) const;
+
+    void RenderRouteBusLines(Svg::Document& svg, const TransportRouter::RouteInfo& route) const;
+    void RenderRouteBusLabels(Svg::Document& svg, const TransportRouter::RouteInfo& route) const;
+    void RenderRouteStopPoints(Svg::Document& svg, const TransportRouter::RouteInfo& route) const;
+    void RenderRouteStopLabels(Svg::Document& svg, const TransportRouter::RouteInfo& route) const;
+
+  static const std::unordered_map<std::string, void (MapRenderer::*)(Svg::Document&) const> MAP_LAYER_ACTIONS;
+  
+  static const std::unordered_map<std::string, void (MapRenderer::*)(Svg::Document&, const TransportRouter::RouteInfo&) const> ROUTE_LAYER_ACTIONS;
 };
 
 struct NeighboursDicts {
